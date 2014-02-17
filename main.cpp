@@ -56,6 +56,60 @@ bool checkNeighbors(unsigned char *pixels, const int &width, const int &height, 
     return false;
 }
 
+bool getNeighborOutlineArray(unsigned char *input, const int &w, const int &h, unsigned char *output)
+{
+    assert(w >= 0);
+    assert(h >= 0);
+    static const uint channels{4};
+    size_t arraySize{uint(w) * uint(h) * channels};
+
+    for (size_t i{0}; i < arraySize; i += channels)
+    {
+        bool res = checkNeighbors(input, w, h, i, 1);
+        bool me = checkPixel(input + i);
+        output[i+0] = res == me ? 0x00 : 0xff;
+        output[i+1] = res == me ? 0x00 : 0xff;
+        output[i+2] = res == me ? 0x00 : 0xff;
+        output[i+3] = 0xff;
+    }
+}
+
+bool getDistanceField(unsigned char *input, const int &w, const int &h, unsigned char *output)
+{
+    assert(w >= 0);
+    assert(h >= 0);
+    static const uint channels{4};
+    static char amount = 0x20;
+    size_t arraySize{uint(w) * uint(h) * channels};
+
+    for (size_t i = 0; i < arraySize; i += channels)
+    {
+        output[i] = 0x00;
+        output[i+1] = 0x00;
+        output[i+2] = 0x00;
+        output[i+3] = 0xff;
+
+        if (checkPixel(input+i))
+        {
+            output[i] = 0x80;
+            output[i+1] = 0x80;
+            output[i+2] = 0x80;
+        }
+        else
+        {
+            for (int j = 0; j < DISTANCE_FIELD_DISTANCE; ++j)
+                if (checkNeighbors(input, w, h, i, j))
+                {
+                    float ratio{float(DISTANCE_FIELD_DISTANCE - j) / float(DISTANCE_FIELD_DISTANCE)};
+                    output[i] += ratio * amount;
+                    output[i+1] += ratio * amount;
+                    output[i+2] += ratio * amount;
+                }
+        }
+    }
+    return true;
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2)
@@ -97,48 +151,21 @@ int main(int argc, char **argv)
     }
 
     std::cout << "Loaded: " << in_file << "\n";
-    char amount = 0x20;
 
-    size_t size = width * heigt * channels;
-    std::cout << "size: "<<size<<"\n";
-    unsigned char *newPixels = new unsigned char[size];
-    memset(newPixels, 0, size);
-    for (size_t i = 0; i < width * heigt * channels; i += 4)
-    {
-        newPixels[i] = 0x00;
-        newPixels[i+1] = 0x00;
-        newPixels[i+2] = 0x00;
-        newPixels[i+3] = 0xff;
+    size_t arrSize{uint(width) * uint(heigt) * channels};
+    unsigned char *edgePixels = new unsigned char[arrSize];
+    memset(edgePixels, 0, arrSize);
+    getNeighborOutlineArray(pixels, width, heigt, edgePixels);
 
-        if (checkPixel(pixels+i))
-        {
-            newPixels[i] = 0x80;
-            newPixels[i+1] = 0x80;
-            newPixels[i+2] = 0x80;
-        }
-        else
-        {
+    unsigned char *distanceField = new unsigned char[arrSize];
+    memset(distanceField, 0, arrSize);
+    getDistanceField(edgePixels, width, heigt, distanceField);
 
-            for (int j = 0; j < DISTANCE_FIELD_DISTANCE; ++j)
-                if (checkNeighbors(pixels, width, heigt, i, j))
-                {
-                    float ratio{float(DISTANCE_FIELD_DISTANCE - j) / float(DISTANCE_FIELD_DISTANCE)};
-                    newPixels[i] += ratio * amount;
-                    newPixels[i+1] += ratio * amount;
-                    newPixels[i+2] += ratio * amount;
-                }
-        }
-
-//        newPixels[i] = pixels[i]; // R
-//        newPixels[i+1] = pixels[i+1]; // G
-//        newPixels[i+2] = pixels[i+2]; // B
-//        newPixels[i+3] = pixels[i+3]; // A
-    }
 
     std::cout << "Done with filter\n";
 
-    int status = stbi_write_png(out_file, width, heigt, channels, newPixels, 0);
-    delete newPixels;
+    int status = stbi_write_png(out_file, width, heigt, channels, distanceField, 0);
+    delete edgePixels;
 
     if (!status)
     {

@@ -7,6 +7,8 @@
 #define FAILED_TO_LOAD_IMAGE 1
 #define FAILED_TO_WRITE_IMAGE 2
 
+#define DISTANCE_FIELD_DISTANCE 5
+
 void showHelp(const char *msg)
 {
     if (msg)
@@ -16,6 +18,42 @@ void showHelp(const char *msg)
                "\t-h Help\n"
                "\t-i The input file\n"
                "\t-o The output file\n");
+}
+
+bool checkPixel(unsigned char pixel[4])
+{
+    return pixel[0] && pixel[1] && pixel[2];
+}
+
+/* Assuming 4 channels */
+bool checkNeighbors(unsigned char *pixels, const int &width, const int &height, const size_t &index, const int &distance)
+{
+    int channels = 4;
+    size_t arrSize = width * height * channels;
+
+    // TL -> TR
+    for (size_t i = index - (distance * width * channels) - distance * channels; i < index - (distance * width * channels) + distance * channels; i += 4)
+        if (i > 0 && i < arrSize && checkPixel(pixels + i))
+            return true;
+
+    // BL -> BR
+    for (size_t i = index + (distance * width * channels) - distance * channels; i < index + (distance * width * channels) + distance * channels; i += 4)
+        if (i > 0 && i < arrSize && checkPixel(pixels + i))
+            return true;
+
+    // TL -> BL
+    for (size_t i = index - (distance * width * channels) - distance * channels; i < index + (distance * width * channels) - distance * channels;
+         i += width * channels)
+        if (i > 0 && i < arrSize && checkPixel(pixels +i))
+            return true;
+
+    // TR -> BR
+    for (size_t i = index - (distance * width * channels) + distance * channels; i < index + (distance * width * channels) + distance * channels;
+         i += width * channels)
+        if (i > 0 && i < arrSize && checkPixel(pixels + i))
+            return true;
+
+    return false;
 }
 
 int main(int argc, char **argv)
@@ -60,7 +98,39 @@ int main(int argc, char **argv)
 
     std::cout << "Loaded: " << in_file << "\n";
 
-    int status = stbi_write_png(out_file, width, heigt, channels, pixels, 0);
+    size_t size = width * heigt * channels;
+    std::cout << "size: "<<size<<"\n";
+    unsigned char *newPixels = new unsigned char[size];
+    memset(newPixels, 0, size);
+    for (size_t i = 0; i < width * heigt * channels; i += 4)
+    {
+        newPixels[i] = 0xff;
+        newPixels[i+1] = 0xff;
+        newPixels[i+2] = 0xff;
+
+        if (checkPixel(pixels+i))
+        {
+            newPixels[i+3] = pixels[i+3];
+        }
+        else
+        {
+            newPixels[i+3] = 0;
+
+            for (int j = 0; j < DISTANCE_FIELD_DISTANCE; ++j)
+                if (checkNeighbors(pixels, width, heigt, i, j))
+                    newPixels[i+3] += j * 0x10;
+        }
+
+//        newPixels[i] = pixels[i]; // R
+//        newPixels[i+1] = pixels[i+1]; // G
+//        newPixels[i+2] = pixels[i+2]; // B
+//        newPixels[i+3] = pixels[i+3]; // A
+    }
+
+    std::cout << "Done with filter\n";
+
+    int status = stbi_write_png(out_file, width, heigt, channels, newPixels, 0);
+    delete newPixels;
 
     if (!status)
     {

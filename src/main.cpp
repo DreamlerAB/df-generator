@@ -1,7 +1,8 @@
 #include <iostream>
-#include <stb/stb_image.h>
+#include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image.h>
 #include <stb/stb_image_write.h>
 
 #define FAILED_TO_LOAD_IMAGE 1
@@ -66,94 +67,22 @@ bool checkNeighbors(unsigned char *pixels, const int &width, const int &height, 
     return false;
 }
 
-bool getNeighborOutlineArray(unsigned char *input, const int &w, const int &h, unsigned char *output)
+bool checkIsIn(const std::vector<unsigned char> &pixels, const int &width, const int &heigt, const int &channels, const int &i)
+{}
+
+int getDistanceToOpposing(const std::vector<unsigned char> &pixels, const int &width, const int &heigt, const int &channels, const int &i)
 {
-    assert(w >= 0);
-    assert(h >= 0);
-    static const uint channels{4};
-    size_t arraySize{uint(w) * uint(h) * channels};
-
-    int passEdge{0};
-    bool passToggle = false;
-    for (size_t i{0}; i < arraySize; i += channels)
-    {
-        bool res = checkNeighbors(input, w, h, i, 1);
-        bool me = checkPixel(input + i);
-        if (res != me && !passToggle)
-        {
-            ++passEdge;
-            passToggle = true;
-        }
-        else if (res == me)
-            passToggle = false;
-
-        output[i+0] = res == me ? 0x00  : 0xff;
-        output[i+1] = res == me ? 0x00 : 0xff;
-        output[i+2] = res == me ? 0x00 : 0xff;
-        output[i+3] = 0xff;
-    }
-    return true;
 }
 
-bool getOr(unsigned char *input1, unsigned char *input2, const int &w, const int &h, unsigned char *output)
+std::vector<float> createSignedDistanceField(const std::vector<unsigned char> &pixels, const int &width, const int &heigt, const int &channels, const int &dfW, const int &dfH)
 {
-    assert(w >= 0);
-    assert(h >= 0);
-    static const uint channels{4};
-    size_t arraySize{uint(w) * uint(h) * channels};
-    for (size_t i{0}; i < arraySize; ++i)
-        output[i] = input1[i] | input2[i];
+    std::vector<std::pair<bool,int> > signedDistanceField(dfW * dfH, 0);
 
-    return true;
-}
-
-void filter(unsigned char *input, const int &w, const int &h, const int &rgba, unsigned char *output)
-{
-    char r{char((rgba & 0xff000000) >> 24)}, g{char((rgba & 0xff0000) >> 16)}, b{char((rgba & 0xff00) >> 8)}, a{char(rgba & 0xff)};
-    assert(w >= 0);
-    assert(h >= 0);
-    static const uint channels{4};
-    size_t arraySize{uint(w) * uint(h) * channels};
-    for (size_t i{0}; i < arraySize; i += channels)
+    int tCnt{dfW*dfH};
+    for (size_t i{0}; i < tCnt; ++i)
     {
-        output[i] = input[i] & r;
-        output[i+1] = input[i+1] & g;
-        output[i+2] = input[i+2] & b;
-        output[i+3] = input[i+3] & a;
+        signedDistanceField[i] = {checkIsIn(pixels, width, heigt, channels, i), getDistanceToOpposing(pixels, width, heigt, channels, i)};
     }
-}
-
-bool getDistanceField(unsigned char *input, const int &w, const int &h, unsigned char *output)
-{
-    assert(w >= 0);
-    assert(h >= 0);
-    static const uint channels{4};
-    static char amount = 0x60;
-    size_t arraySize{uint(w) * uint(h) * channels};
-
-    for (size_t i = 0; i < arraySize; i += channels)
-    {
-        output[i] = 0xff;
-        output[i+1] = 0xff;
-        output[i+2] = 0xff;
-        output[i+3] = 0x00;
-
-        if (checkPixel(input+i))
-        {
-            output[i+3] = 0x80;
-        }
-        else
-        {
-            for (int j = 0; j < DISTANCE_FIELD_DISTANCE; ++j)
-                if (checkNeighbors(input, w, h, i, j))
-                {
-                    float ratio{float(DISTANCE_FIELD_DISTANCE - j) / float(DISTANCE_FIELD_DISTANCE)};
-                    output[i+3] += ratio * amount;
-                    break;
-                }
-        }
-    }
-    return true;
 }
 
 int main(int argc, char **argv)
@@ -194,37 +123,27 @@ int main(int argc, char **argv)
     }
 
     int width, heigt, channels;
-    unsigned char *pixels = stbi_load(in_file.c_str(), &width, &heigt, &channels, STBI_rgb_alpha);
-    if (!check(pixels, "Failed to load image", std::string{"Loaded image: "} + in_file))
+    unsigned char *img_data = stbi_load(in_file.c_str(), &width, &heigt, &channels, STBI_rgb_alpha);
+    if (!check(img_data, "Failed to load image", std::string{"Loaded image: "} + in_file))
         return FAILED_TO_LOAD_IMAGE;
 
-    size_t arrSize{uint(width) * uint(heigt) * channels};
-    unsigned char *edgePixels = new unsigned char[arrSize];
-    memset(edgePixels, 0, arrSize);
-    getNeighborOutlineArray(pixels, width, heigt, edgePixels);
+    std::vector<unsigned char> pixels(width * heigt * channels);
+    int res;
+    std::copy(pixels.data(), img_data, &res);
 
-    unsigned char *redOriginal = new unsigned char[arrSize];
-    unsigned char *fill = new unsigned char[arrSize];
-    memset(fill, 0, arrSize);
-    filter(pixels, width, heigt, 0xff0000ff, redOriginal);
-    getOr(redOriginal, edgePixels, width, heigt, fill);
-
-    unsigned char *distanceField = new unsigned char[arrSize];
-    memset(distanceField, 0, arrSize);
-    getDistanceField(pixels, width, heigt, distanceField);
-
+    int dfW{width / minification}, dfH{heigt / minification};
+    std::vector<float> signedDistanceField{createSignedDistanceField(pixels, width, heigt, channels, dfW, dfH)};
 
     std::cout << "Done with filter\n";
 
-    int s1 = stbi_write_png(std::string("e_" + std::string(out_file)).c_str(), width, heigt, channels, fill, 0);
-    int s2 = stbi_write_png(out_file.c_str(), width, heigt, channels, distanceField, 0);
-    delete edgePixels;
+//    int s1 = stbi_write_png(std::string("e_" + out_file).c_str(), width, heigt, channels, fill, 0);
+//    int s2 = stbi_write_png(out_file.c_str(), width, heigt, channels, distanceField, 0);
 
-    if (!(s1 && s2))
-    {
-        std::cerr << "Failed to write: " << out_file << "\nTerminating...\n";
-        return FAILED_TO_WRITE_IMAGE;
-    }
+//    if (!(s1 && s2))
+//    {
+//        std::cerr << "Failed to write: " << out_file << "\nTerminating...\n";
+//        return FAILED_TO_WRITE_IMAGE;
+//    }
 
     std::cout << "Wrote: " << out_file << "\n";
     std::cout << "Done!\n";

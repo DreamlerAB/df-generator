@@ -18,7 +18,7 @@ from Siggraph 2007
 
     The MIT License (MIT)
 
-    Copyright (c) 2013 John Barbero Unenge
+    Copyright (c) 2014 John Barbero Unenge
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

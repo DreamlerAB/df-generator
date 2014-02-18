@@ -1,8 +1,8 @@
 #include <iostream>
-#include "stb_image.h"
+#include <stb/stb_image.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include <stb/stb_image_write.h>
 
 #define FAILED_TO_LOAD_IMAGE 1
 #define FAILED_TO_WRITE_IMAGE 2
@@ -18,6 +18,16 @@ void showHelp(const char *msg)
                "\t-h Help\n"
                "\t-i The input file\n"
                "\t-o The output file\n");
+}
+
+bool check(const void *arr, const std::string &errMsg, const std::string &successMsg)
+{
+    if (!arr)
+        std::cerr << errMsg << "\n";
+    else
+        std::cout << successMsg << "\n";
+
+    return arr;
 }
 
 bool checkPixel(unsigned char pixel[4])
@@ -82,6 +92,7 @@ bool getNeighborOutlineArray(unsigned char *input, const int &w, const int &h, u
         output[i+2] = res == me ? 0x00 : 0xff;
         output[i+3] = 0xff;
     }
+    return true;
 }
 
 bool getOr(unsigned char *input1, unsigned char *input2, const int &w, const int &h, unsigned char *output)
@@ -92,11 +103,13 @@ bool getOr(unsigned char *input1, unsigned char *input2, const int &w, const int
     size_t arraySize{uint(w) * uint(h) * channels};
     for (size_t i{0}; i < arraySize; ++i)
         output[i] = input1[i] | input2[i];
+
+    return true;
 }
 
 void filter(unsigned char *input, const int &w, const int &h, const int &rgba, unsigned char *output)
 {
-    char r{(rgba & 0xff000000) >> 24}, g{(rgba & 0xff0000) >> 16}, b{(rgba & 0xff00) >> 8}, a{(rgba & 0xff)};
+    char r{char((rgba & 0xff000000) >> 24)}, g{char((rgba & 0xff0000) >> 16)}, b{char((rgba & 0xff00) >> 8)}, a{char(rgba & 0xff)};
     assert(w >= 0);
     assert(h >= 0);
     static const uint channels{4};
@@ -145,45 +158,45 @@ bool getDistanceField(unsigned char *input, const int &w, const int &h, unsigned
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc != 7)
     {
-        showHelp(0);
+        if (argc < 2)
+            showHelp(0);
+        else
+            showHelp("Wrong number of arguments!");
         return 0;
     }
 
-    if (argc != 5)
+    std::string in_file, out_file, minification_str;
+
+    for (int i = 0; i < argc - 1; ++i)
     {
-        showHelp("Wrong number of arguments!");
+        if (!strcmp(argv[i], "-i"))
+            in_file = std::string(argv[i+1]);
+        else if (!strcmp(argv[i], "-o"))
+            out_file = std::string(argv[i+1]);
+        else if (!strcmp(argv[i], "-m"))
+            minification_str = std::string(argv[i+1]);
+    }
+
+
+    if (in_file.empty() || out_file.empty() || minification_str.empty())
+    {
+        showHelp("You have to specify an input file, an output file and a minification factor!");
         return 0;
     }
 
-    const char *in_file{0}, *out_file{0};
-
-    if (!strcmp(argv[1], "-i"))
-        in_file = argv[2];
-    else if (!strcmp(argv[1], "-o"))
-        out_file = argv[2];
-
-    if (!strcmp(argv[3], "-o"))
-        out_file = argv[4];
-    else if (!strcmp(argv[3], "-i"))
-        in_file = argv[4];
-
-    if (!(in_file && out_file))
+    int minification = std::stoi(minification_str);
+    if (minification <= 0)
     {
-        showHelp("You have to specify an input file and an output file!");
+        showHelp("The minification factor has to be a value > 0");
         return 0;
     }
 
     int width, heigt, channels;
-    unsigned char *pixels = stbi_load(in_file, &width, &heigt, &channels, STBI_rgb_alpha);
-    if (!pixels)
-    {
-        std::cerr << "Failed to load: " << in_file << "\nTerminating...\n";
+    unsigned char *pixels = stbi_load(in_file.c_str(), &width, &heigt, &channels, STBI_rgb_alpha);
+    if (!check(pixels, "Failed to load image", std::string{"Loaded image: "} + in_file))
         return FAILED_TO_LOAD_IMAGE;
-    }
-
-    std::cout << "Loaded: " << in_file << "\n";
 
     size_t arrSize{uint(width) * uint(heigt) * channels};
     unsigned char *edgePixels = new unsigned char[arrSize];
@@ -204,7 +217,7 @@ int main(int argc, char **argv)
     std::cout << "Done with filter\n";
 
     int s1 = stbi_write_png(std::string("e_" + std::string(out_file)).c_str(), width, heigt, channels, fill, 0);
-    int s2 = stbi_write_png(out_file, width, heigt, channels, distanceField, 0);
+    int s2 = stbi_write_png(out_file.c_str(), width, heigt, channels, distanceField, 0);
     delete edgePixels;
 
     if (!(s1 && s2))

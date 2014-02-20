@@ -28,6 +28,17 @@ struct Pixel
 
     Pixel(const T (&channels)[N])
     {
+        setChannels(channels);
+    }
+
+    const Pixel &operator=(const Pixel<T, N> &pixel)
+    {
+        setChannels(pixel.m_channels);
+        return *this;
+    }
+
+    void setChannels(const T (&channels)[N])
+    {
         for (size_t i = 0; i < N; ++i)
             m_channels[i] = channels[i];
     }
@@ -36,23 +47,39 @@ struct Pixel
 };
 
 template <class T>
-struct Resolution
+class Resolution
 {
-    T w, h;
+public:
+    Resolution(const T &width, const T &height) :
+        m_width(width), m_height(height), m_product(width * height)
+    {}
+
+    const T &getProduct() const
+    { return m_product; }
+
+    const T &w() const
+    { return m_width; }
+
+    const T &h() const
+    { return m_height; }
+
+private:
+    T m_width, m_height, m_product;
 };
 
 template <class T, int N>
 class Image
 {
 public:
-    Image(const std::string &fileName)
+
+    Image(const std::string &fileName) : m_resolution(0,0)
     {
         int w,h,c;
         unsigned char *img_data = stbi_load(fileName.c_str(), &w, &h, &c, STBI_rgb_alpha);
         if (img_data)
         {
             m_resolution = {size_t(w),size_t(h)};
-            m_pixels = std::vector<Pixel<T,N>>(m_resolution.w * m_resolution.h);
+            m_pixels = std::vector<Pixel<T,N>>(m_resolution.getProduct());
             memcpy((void*)m_pixels.data(), img_data, w * h * c);
         }
         else
@@ -63,8 +90,12 @@ public:
 
     Image(const Resolution<size_t> &resolution) : m_resolution(resolution)
     {
-        m_pixels = std::vector<Pixel<T,N>>(m_resolution.w * m_resolution.h, Pixel<T,N>());
+        m_pixels = std::vector<Pixel<T,N>>(m_resolution.getProduct(), Pixel<T,N>());
     }
+
+    Image(const std::vector<Pixel<T,N>> &pixels, const Resolution<size_t> &resolution) :
+        m_pixels(pixels), m_resolution(resolution)
+    {}
 
     Image() : m_resolution{0,0}
     {}
@@ -94,7 +125,7 @@ public:
     bool saveImage(const std::string &fileName) const
     {
         int channels{4};
-        int status = stbi_write_png(fileName.c_str(), m_resolution.w, m_resolution.h, channels, (unsigned char *)m_pixels.data(), 0);
+        int status = stbi_write_png(fileName.c_str(), m_resolution.w(), m_resolution.h(), channels, (unsigned char *)m_pixels.data(), 0);
         return status;
     }
 

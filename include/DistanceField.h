@@ -5,16 +5,18 @@
 namespace dfgenerator
 {
 
+typedef Image<uint32_t,1> dfImage;
+
 class DistanceField
 {
 public:
     DistanceField(const std::string &fileName, const Resolution<size_t> &targetResolution);
 
-    const Image<uint32_t,1> getDfImage() const;
-    const Image<uint32_t,1> &getOriginalImage() const;
+    const dfImage getDfImage() const;
+    const dfImage &getOriginalImage() const;
 
 private:
-    Image<uint32_t,1> m_originalImage;
+    dfImage m_originalImage;
     Resolution<size_t> m_targetResolution;
 };
 
@@ -25,11 +27,11 @@ DistanceField::DistanceField(const std::string &fileName, const Resolution<size_
 bool isIn(const Pixel<uint32_t,1> &pixel)
 { return pixel.m_channels[0] & 0xff000000; }
 
-int getDistanceToNearestOpposite(const Image<uint32_t,1> &image, const size_t &index)
+int getDistanceToNearestOpposite(const dfImage &image, const size_t &index, const int &spread)
 {
     int distance{0};
     bool thisPixelOn{isIn(image.getPixels()[index])};
-    while (distance++ < 10)
+    while (distance++ < spread)
     {
         // TL -> TR
         for (size_t i = index - (distance * image.getResolution().w()) - distance; i < index - (distance * image.getResolution().w()) + distance; ++i)
@@ -52,29 +54,54 @@ int getDistanceToNearestOpposite(const Image<uint32_t,1> &image, const size_t &i
              i += image.getResolution().w())
             if (i > 0 && i < image.getResolution().getProduct() && (thisPixelOn != isIn(image.getPixels()[i])))
                 return thisPixelOn ? distance : -distance;
-
     }
-    return 10;
+    return spread;
 }
 
-const Image<uint32_t,1> DistanceField::getDfImage() const
+const dfImage DistanceField::getDfImage() const
 {
     typedef std::pair<bool, int> ppair;
-    typedef Pixel<ppair, 1> px;
+    typedef Pixel<int, 1> px;
 
     std::vector<px> newPixelArray{m_originalImage.getResolution().getProduct()};
+    int maxPos{0}, maxNeg{0}, dist;
     for (size_t i{0}; i < m_originalImage.getResolution().getProduct(); ++i)
-        newPixelArray[i] = {{{isIn(m_originalImage.getPixels()[i]), getDistanceToNearestOpposite(m_originalImage, i)}}};
+    {
+        dist = getDistanceToNearestOpposite(m_originalImage, i, 10);
 
-    Image<uint32_t, 1> newImg(m_originalImage.getResolution());
-//    for (size_t i{0}; i < newImg.getResolution().getProduct(); ++i)
-//        newImg.getPixels()[i] =
+        if (dist > maxPos)
+            maxPos = dist;
+        else if (dist < maxNeg)
+            maxNeg = dist;
 
-    Image<uint32_t,1> dfImg{m_originalImage};
-    return dfImg;
+        newPixelArray[i] = {{dist}};
+    }
+
+    dfImage newImg(m_originalImage.getResolution());
+    float ratio;
+    char alpha; uint32_t col;
+    for (size_t i{0}; i < newImg.getResolution().getProduct(); ++i)
+    {
+        if (newPixelArray[i].m_channels[0] < 0)
+        {
+            ratio = (float(newPixelArray[i].m_channels[0]) / float(maxNeg));
+            alpha = 0x80 - 0x80 * ratio;
+        }
+        else
+        {
+            ratio = (float(newPixelArray[i].m_channels[0]) / float(maxPos));
+            alpha = 0x80 + 0x80 * ratio;
+        }
+        if (alpha)
+            ;
+        col = ((alpha << 24) & 0xff000000) | 0xff0000 | 0xff00 | 0xff;
+        newImg.getNonConstPixels()[i] = {{col}};
+    }
+
+    return newImg.scaleLinear({256,256});
 }
 
-const Image<uint32_t,1> &DistanceField::getOriginalImage() const
+const dfImage &DistanceField::getOriginalImage() const
 { return m_originalImage; }
 
 }

@@ -10,7 +10,7 @@ typedef Image<uint32_t,1> dfImage;
 class DistanceField
 {
 public:
-    DistanceField(const std::string &fileName, const Resolution<size_t> &targetResolution);
+    DistanceField(const std::string &fileName, const size_t &maximumMeasurement);
 
     const dfImage getDfImage() const;
     const dfImage &getOriginalImage() const;
@@ -20,9 +20,13 @@ private:
     Resolution<size_t> m_targetResolution;
 };
 
-DistanceField::DistanceField(const std::string &fileName, const Resolution<size_t> &targetResolution) :
-    m_originalImage(fileName), m_targetResolution(targetResolution)
-{}
+DistanceField::DistanceField(const std::string &fileName, const size_t &maximumMeasurement) :
+    m_originalImage(fileName), m_targetResolution{0,0}
+{
+    size_t w{size_t(maximumMeasurement * m_originalImage.getResolution().getAspectRatio())}, h{size_t(maximumMeasurement * (1.f / m_originalImage.getResolution().getAspectRatio()))};
+
+    m_targetResolution = {w,h};
+}
 
 bool isIn(const Pixel<uint32_t,1> &pixel)
 { return pixel.m_channels[0] & 0xff000000; }
@@ -98,7 +102,7 @@ const dfImage DistanceField::getDfImage() const
         newImg.getNonConstPixels()[i] = {{col}};
     }
 
-    return newImg.scaleLinear({256,256});
+    return newImg.scaleLinear(m_targetResolution);
 }
 
 const dfImage &DistanceField::getOriginalImage() const

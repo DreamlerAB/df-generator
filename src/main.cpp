@@ -11,10 +11,12 @@ void showHelp(const char *msg)
     if (msg)
         std::cout << msg << "\n\n";
 
-    std::cout << ("Usage:\n"
+    std::cout << ("\nUsage:\n"
                "\t-h Help\n"
                "\t-i The input file\n"
-               "\t-o The output file\n");
+               "\t-o The output file\n"
+               "\t-m The maximum measurement of the output file\n"
+               "\nCopyright (C) 2014 John Barbero Unenge\n\n");
 }
 
 int main(int argc, char **argv)
@@ -53,7 +55,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    dfgenerator::DistanceField df{in_file, {64,64}};
+    dfgenerator::DistanceField df{in_file, size_t(minification)};
     df.getDfImage().saveImage(out_file);
 
     std::cout << "Done!" << std::endl;

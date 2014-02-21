@@ -30,6 +30,10 @@ make
 ./df-generator -i some-file.png -o out-file.png -m 512 -c 10
 ```
 
+## Author
+
+John Barbero Unenge - john@dreamler.com
+
 ## License
 
     The MIT License (MIT)

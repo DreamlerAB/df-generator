@@ -3,6 +3,7 @@
 #include <Image.h>
 #include <thread>
 #include <deque>
+#include <OpenCL.h>
 
 namespace dfgenerator
 {
@@ -27,6 +28,7 @@ DistanceField::DistanceField(const std::string &fileName, const size_t &maximumM
 {
     size_t w{size_t(maximumMeasurement * m_originalImage.getResolution().getAspectRatio())}, h{size_t(maximumMeasurement * (1.f / m_originalImage.getResolution().getAspectRatio()))};
 
+    OpenCL<char, 128> cl;
     m_targetResolution = {w,h};
 }
 

@@ -6,6 +6,7 @@ set(SRCROOT ${PROJECT_SOURCE_DIR}/src)
 set(HEADERS
 ${INCROOT}/Image.h
 ${INCROOT}/DistanceField.h
+${INCROOT}/OpenCL.h
 )
 
 add_custom_target(include SOURCES ${HEADERS})

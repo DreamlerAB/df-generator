@@ -1,10 +1,5 @@
 # Df-generator (Distance fields generator)
 
-## Disclaimer
-
-This project is currently in early development and does not currently work.
-If you are interested in using it, check back in a couple of days.
-
 ## About
 
 df-generator is a commandline tool used for generating compact textures for 
@@ -13,6 +8,27 @@ looking textures with minimal video memory footprint.
 
 The technique used is based on Valves [paper](http://www.valvesoftware.com/publications/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf) 
 from Siggraph 2007
+
+## Installation
+
+```bash
+git clone git@github.com:DreamlerAB/df-generator.git
+mkdir df-generator/build
+cd df-generator/build
+cmake ..
+make
+```
+
+## Usage
+
+```bash
+# some-file.png - inputfile
+# out-file.png	- outfile
+# 512			- the output maximum dimension
+# 10			- the number of cores to use
+
+./df-generator -i some-file.png -o out-file.png -m 512 -c 10
+```
 
 ## License
 

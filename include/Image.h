@@ -86,6 +86,8 @@ public:
 
     Image(const std::string &fileName) : m_resolution(0,0)
     {
+        std::cout << "Loading image... ";
+        std::cout.flush();
         int w,h,c;
         unsigned char *img_data = stbi_load(fileName.c_str(), &w, &h, &c, STBI_rgb_alpha);
         if (img_data)
@@ -98,6 +100,7 @@ public:
         {
             std::cerr << "Unable to open image: " << fileName << std::endl;
         }
+        std::cout << "done!" << std::endl;
     }
 
     Image(const Resolution<size_t> &resolution) : m_resolution(resolution)
@@ -157,6 +160,8 @@ public:
         bool scaleUp{m_resolution < targetResolution};
         size_t oppPpD{m_resolution.w() / targetResolution.w()}; // Original pixels per pixel per dimension
         uint32_t a,r,g,b;
+
+        std::cout << "Scaling image... "; std::cout.flush();
         for (size_t y{0}; y < targetResolution.w(); ++y)
         {
             for (size_t x{0}; x < targetResolution.h(); ++x)
@@ -191,6 +196,7 @@ public:
                 }
             }
         }
+        std::cout << "done!" << std::endl;
         return newImage;
     }
 

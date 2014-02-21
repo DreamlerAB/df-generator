@@ -16,12 +16,14 @@ void showHelp(const char *msg)
                "\t-i The input file\n"
                "\t-o The output file\n"
                "\t-m The maximum measurement of the output file\n"
+               "\t-d The distance (spread) to use\n"
+               "\t-c The number of threads to use\n"
                "\nCopyright (C) 2014 John Barbero Unenge\n\n");
 }
 
 int main(int argc, char **argv)
 {
-    if (argc != 7)
+    if (argc != 11)
     {
         if (argc < 2)
             showHelp(0);
@@ -30,8 +32,9 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    std::string in_file, out_file, minification_str;
+    std::string in_file, out_file;
 
+    int maxSize{0}, distance{0}, cores{0};
     for (int i = 0; i < argc - 1; ++i)
     {
         if (!strcmp(argv[i], "-i"))
@@ -39,24 +42,39 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-o"))
             out_file = std::string(argv[i+1]);
         else if (!strcmp(argv[i], "-m"))
-            minification_str = std::string(argv[i+1]);
+            maxSize = std::atoi(argv[i+1]);
+        else if (!strcmp(argv[i], "-d"))
+            distance = std::atoi(argv[i+1]);
+        else if (!strcmp(argv[i], "-c"))
+            cores = std::atoi(argv[i+1]);
     }
 
-    if (in_file.empty() || out_file.empty() || minification_str.empty())
+    if (in_file.empty() || out_file.empty() || maxSize == 0 || distance == 0)
     {
-        showHelp("You have to specify an input file, an output file and a minification factor!");
+        showHelp("You have to specify an input file, an output file, a maximum size and a distance!");
         return 0;
     }
 
-    int minification = std::stoi(minification_str);
-    if (minification <= 0)
+    if (maxSize <= 0)
     {
-        showHelp("The minification factor has to be a value > 0");
+        showHelp("The maximum output size has to be a value > 0");
         return 0;
     }
 
-    dfgenerator::DistanceField df{in_file, size_t(minification)};
-    df.getDfImage().saveImage(out_file);
+    if (distance <= 0)
+    {
+        showHelp("The distance has to be a value > 0");
+        return 0;
+    }
+
+    if (cores <= 0)
+    {
+        showHelp("The number of cores has to be a value > 0");
+        return 0;
+    }
+
+    dfgenerator::DistanceField df{in_file, size_t(maxSize)};
+    df.getDfImage(distance, cores).saveImage(out_file);
 
     std::cout << "Done!" << std::endl;
     return 0;
